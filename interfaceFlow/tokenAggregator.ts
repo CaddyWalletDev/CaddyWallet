@@ -1,31 +1,54 @@
 export class TokenFluxAggregator {
-  private fluxMap: Map<string, number[]> = new Map()
+  private fluxMap = new Map<string, { change: number; timestamp: number }[]>()
+
+  constructor(private historyLimit = 100, private windowMs?: number) {}
 
   add(mint: string, change: number): void {
-    if (!this.fluxMap.has(mint)) {
-      this.fluxMap.set(mint, [])
+    const now = Date.now()
+    const list = this.fluxMap.get(mint) || []
+    list.push({ change, timestamp: now })
+    if (list.length > this.historyLimit) list.shift()
+    if (this.windowMs != null) {
+      while (list.length && now - list[0].timestamp > this.windowMs) {
+        list.shift()
+      }
     }
-    const arr = this.fluxMap.get(mint)!
-    arr.push(change)
-    if (arr.length > 100) {
-      arr.shift()
-    }
+    this.fluxMap.set(mint, list)
   }
 
   averageFlux(mint: string): number {
-    const arr = this.fluxMap.get(mint) || []
-    if (!arr.length) return 0
-    const sum = arr.reduce((a, b) => a + b, 0)
-    return sum / arr.length
+    const list = this.fluxMap.get(mint) || []
+    if (!list.length) return 0
+    const sum = list.reduce((acc, rec) => acc + rec.change, 0)
+    return sum / list.length
+  }
+
+  fluxStdDev(mint: string): number {
+    const list = this.fluxMap.get(mint) || []
+    const n = list.length
+    if (n < 2) return 0
+    const mean = this.averageFlux(mint)
+    const variance =
+      list.reduce((acc, rec) => acc + (rec.change - mean) ** 2, 0) /
+      (n - 1)
+    return Math.sqrt(variance)
   }
 
   topFlux(n: number): string[] {
     const scores: Array<{ mint: string; avg: number }> = []
-    for (const [mint, arr] of this.fluxMap.entries()) {
-      const avg = arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0
+    for (const [mint, list] of this.fluxMap) {
+      const avg = list.length
+        ? list.reduce((acc, rec) => acc + rec.change, 0) / list.length
+        : 0
       scores.push({ mint, avg })
     }
-    scores.sort((a, b) => b.avg - a.avg)
-    return scores.slice(0, n).map(s => s.mint)
+    return scores
+      .sort((a, b) => b.avg - a.avg)
+      .slice(0, n)
+      .map(s => s.mint)
+  }
+
+  reset(): void {
+    this.fluxMap.clear()
   }
 }
