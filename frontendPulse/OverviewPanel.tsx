@@ -1,5 +1,4 @@
-// OverviewPanel.tsx
-import React from 'react'
+import React, { useMemo } from 'react'
 
 interface OverviewPanelProps {
   title: string
@@ -9,41 +8,70 @@ interface OverviewPanelProps {
   history: number[]
 }
 
-const OverviewPanel: React.FC<OverviewPanelProps> = ({
+export const OverviewPanel: React.FC<OverviewPanelProps> = React.memo(({
   title,
   totalBalance,
   openOrders,
   recentPnL,
-  history
+  history,
 }) => {
-  // simple sparkline path
-  const max = Math.max(...history, 1)
-  const points = history.map((v, i) => {
-    const x = (i / (history.length - 1)) * 100
-    const y = 100 - (v / max) * 100
-    return `${x},${y}`
-  }).join(' ')
+  // Precompute sparkline points
+  const points = useMemo(() => {
+    if (history.length < 2) {
+      // fallback to a flat line
+      return history.map((_, i) => `${(i / (history.length || 1)) * 100},50`).join(' ')
+    }
+    const max = Math.max(...history, 1)
+    return history
+      .map((v, i) => {
+        const x = (i / (history.length - 1)) * 100
+        const y = 100 - (v / max) * 100
+        return `${x},${y}`
+      })
+      .join(' ')
+  }, [history])
 
   return (
-    <div className="bg-white shadow-lg rounded-xl p-6">
-      <h2 className="text-2xl font-semibold mb-4">{title}</h2>
-      <div className="space-y-2 mb-4">
+    <div className="bg-white dark:bg-gray-800 shadow-lg rounded-2xl p-6">
+      <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+        {title}
+      </h2>
+
+      <div className="space-y-3 mb-6">
         <div className="flex justify-between">
-          <span>Total Balance</span>
-          <span className="font-mono">{totalBalance.toFixed(2)} SOL</span>
+          <span className="text-gray-700 dark:text-gray-300">Total Balance</span>
+          <span className="font-mono text-gray-900 dark:text-gray-100">
+            {totalBalance.toFixed(2)} SOL
+          </span>
         </div>
+
         <div className="flex justify-between">
-          <span>Open Orders</span>
-          <span className="font-mono">{openOrders}</span>
+          <span className="text-gray-700 dark:text-gray-300">Open Orders</span>
+          <span className="font-mono text-gray-900 dark:text-gray-100">
+            {openOrders}
+          </span>
         </div>
+
         <div className="flex justify-between">
-          <span>Recent PnL</span>
-          <span className={`${recentPnL >= 0 ? 'text-green-600' : 'text-red-600'} font-mono`}>
-            {recentPnL >= 0 ? '+' : ''}{recentPnL.toFixed(2)}%
+          <span className="text-gray-700 dark:text-gray-300">Recent PnL</span>
+          <span
+            className={`font-mono ${
+              recentPnL >= 0 ? 'text-green-600' : 'text-red-600'
+            }`}
+          >
+            {recentPnL >= 0 ? '+' : ''}
+            {recentPnL.toFixed(2)}%
           </span>
         </div>
       </div>
-      <svg className="w-full h-20" viewBox="0 0 100 100" preserveAspectRatio="none">
+
+      <svg
+        className="w-full h-24"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        aria-label="Performance sparkline"
+        role="img"
+      >
         <polyline
           fill="none"
           stroke="#34D399"
@@ -53,6 +81,8 @@ const OverviewPanel: React.FC<OverviewPanelProps> = ({
       </svg>
     </div>
   )
-}
+})
+
+OverviewPanel.displayName = 'OverviewPanel'
 
 export default OverviewPanel
