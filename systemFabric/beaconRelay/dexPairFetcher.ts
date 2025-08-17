@@ -1,5 +1,3 @@
-
-
 import fetch from 'node-fetch'
 
 export interface TokenPair {
@@ -9,8 +7,8 @@ export interface TokenPair {
   pairAddress: string
 }
 
-const DEX_SCREENER_API = process.env.DEX_SCREENER_API_URL || 'https://api.dexscreener.com/latest/dex/pairs'
-
+const DEX_SCREENER_API =
+  process.env.DEX_SCREENER_API_URL || 'https://api.dexscreener.com/latest/dex/pairs'
 
 export async function fetchDexTokenPairs(
   chain: string = 'solana',
@@ -20,17 +18,16 @@ export async function fetchDexTokenPairs(
 
   const res = await fetch(url)
   if (!res.ok) {
-    throw new Error(`DexScreener returned ${res.status}`)
+    throw new Error(`DexScreener API error: ${res.status} ${res.statusText}`)
   }
 
   const json = await res.json()
-  // assume json.pairs is the array
-  const pairs: TokenPair[] = json.pairs.map((p: any) => ({
-    baseSymbol: p.baseToken.symbol,
-    quoteSymbol: p.quoteToken.symbol,
-    liquidity: Number(p.liquidity ?? 0),
-    pairAddress: p.pairAddress
-  }))
+  const rawPairs = Array.isArray(json.pairs) ? json.pairs : []
 
-  return pairs
+  return rawPairs.map((p: any): TokenPair => ({
+    baseSymbol: p.baseToken?.symbol ?? '',
+    quoteSymbol: p.quoteToken?.symbol ?? '',
+    liquidity: Number(p.liquidity) || 0,
+    pairAddress: p.pairAddress ?? '',
+  }))
 }
