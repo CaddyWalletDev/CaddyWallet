@@ -18,9 +18,10 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = React.memo(({
   // Precompute sparkline points
   const points = useMemo(() => {
     if (history.length < 2) {
-      // fallback to a flat line
+      // Fallback to a flat line for less than 2 points
       return history.map((_, i) => `${(i / (history.length || 1)) * 100},50`).join(' ')
     }
+
     const max = Math.max(...history, 1)
     return history
       .map((v, i) => {
@@ -30,6 +31,12 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = React.memo(({
       })
       .join(' ')
   }, [history])
+
+  const pnlColorClass = useMemo(() => {
+    if (recentPnL > 0) return 'text-green-500'
+    if (recentPnL < 0) return 'text-red-500'
+    return 'text-gray-500'
+  }, [recentPnL])
 
   return (
     <div className="bg-white dark:bg-gray-800 shadow-lg rounded-2xl p-6">
@@ -54,11 +61,7 @@ export const OverviewPanel: React.FC<OverviewPanelProps> = React.memo(({
 
         <div className="flex justify-between">
           <span className="text-gray-700 dark:text-gray-300">Recent PnL</span>
-          <span
-            className={`font-mono ${
-              recentPnL >= 0 ? 'text-green-600' : 'text-red-600'
-            }`}
-          >
+          <span className={`font-mono ${pnlColorClass}`}>
             {recentPnL >= 0 ? '+' : ''}
             {recentPnL.toFixed(2)}%
           </span>
