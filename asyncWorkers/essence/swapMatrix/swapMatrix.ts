@@ -8,9 +8,7 @@ export interface MatrixEntry {
 }
 
 export class SwapMatrix {
-  /**
-   * Builds a list of MatrixEntry objects from swap pairs and rates
-   */
+
   compute(pairs: SwapPair[], rates: number[]): MatrixEntry[] {
     const now = Date.now()
     const length = Math.min(pairs.length, rates.length)
