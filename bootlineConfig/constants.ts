@@ -1,8 +1,5 @@
 import { z } from "zod"
 
-// -----------------------------
-// API endpoint literals
-// -----------------------------
 export const API_ENDPOINTS = {
   portfolioSummary: "/api/portfolio/summary",
   sentiment:        "/api/sentiment",
@@ -11,9 +8,6 @@ export const API_ENDPOINTS = {
 } as const
 export type ApiEndpoints = typeof API_ENDPOINTS
 
-// -----------------------------
-// Default numeric settings
-// -----------------------------
 export const DEFAULTS = {
   pollingIntervalMs:   15_000,
   sentimentTimeoutMs:  5_000,
@@ -22,9 +16,6 @@ export const DEFAULTS = {
 } as const
 export type Defaults = typeof DEFAULTS
 
-// -----------------------------
-// UI layout constants
-// -----------------------------
 export const UI_CONFIG = {
   chartResolution:      100,
   panelPadding:         6,
@@ -33,11 +24,6 @@ export const UI_CONFIG = {
 } as const
 export type UiConfig = typeof UI_CONFIG
 
-// -----------------------------
-// Env helpers
-// -----------------------------
-
-/** Try a list of env keys, return first non-empty value */
 function envFirst(keys: string[], env = process.env): string | undefined {
   for (const k of keys) {
     const v = env[k]
@@ -71,9 +57,6 @@ function envBool(key: string, fallback = false): boolean {
   return ["1", "true", "yes", "y", "on"].includes(s)
 }
 
-// -----------------------------
-// Zod schema for validated config
-// -----------------------------
 export const appConfigSchema = z.object({
   endpoints: z.object({
     portfolioSummary: z.literal(API_ENDPOINTS.portfolioSummary),
@@ -86,7 +69,6 @@ export const appConfigSchema = z.object({
     sentimentTimeoutMs: z.number().int().positive(),
     swapSlippagePct:    z.number().min(0).max(100),
     swapTimeoutSec:     z.number().int().positive(),
-    /** Derived: slippage as fraction in [0,1] */
     swapSlippageFraction: z.number().min(0).max(1),
   }),
   ui: z.object({
@@ -104,23 +86,15 @@ export const appConfigSchema = z.object({
 })
 export type AppConfig = z.infer<typeof appConfigSchema>
 
-// -----------------------------
-// Build runtime config (with env overrides)
-// -----------------------------
-/**
- * Build config from a provided env (defaults to process.env). Keeps strong literal checks on endpoints.
- * Adds derived defaults.swapSlippageFraction and env info.
- */
 export function buildAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const rawConfig = {
     endpoints: API_ENDPOINTS,
     defaults: {
-      // Support both POLLING_INTERVAL_MS and POLL_INTERVAL_MS as synonyms
       pollingIntervalMs:  envNumberAny(["POLLING_INTERVAL_MS", "POLL_INTERVAL_MS"], DEFAULTS.pollingIntervalMs, { integer: true, min: 1 }),
       sentimentTimeoutMs: envNumberAny(["SENTIMENT_TIMEOUT_MS", "SENT_TIMEOUT_MS"], DEFAULTS.sentimentTimeoutMs, { integer: true, min: 1 }),
       swapSlippagePct:    envPctAny(["SWAP_SLIPPAGE_PCT"], DEFAULTS.swapSlippagePct),
       swapTimeoutSec:     envNumberAny(["SWAP_TIMEOUT_SEC"], DEFAULTS.swapTimeoutSec, { integer: true, min: 1 }),
-      swapSlippageFraction: 0, // placeholder; set below
+      swapSlippageFraction: 0,
     },
     ui: {
       chartResolution:      envNumberAny(["UI_CHART_RESOLUTION"], UI_CONFIG.chartResolution, { integer: true, min: 1 }),
@@ -141,18 +115,10 @@ export function buildAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig 
   return appConfigSchema.parse(rawConfig)
 }
 
-// -----------------------------
-// Endpoint resolution with API_BASE_URL
-// -----------------------------
-/**
- * If API_BASE_URL is set (e.g., https://api.example.com), returns full URLs for endpoints,
- * otherwise returns the original relative paths.
- */
 export function resolveEndpoint(name: keyof ApiEndpoints, env: NodeJS.ProcessEnv = process.env): string {
   const base = envFirst(["API_BASE_URL"], env)
   const path = API_ENDPOINTS[name]
   if (!base) return path
-  // Normalize join without double slashes
   const trimmed = base.endsWith("/") ? base.slice(0, -1) : base
   return path.startsWith("/") ? `${trimmed}${path}` : `${trimmed}/${path}`
 }
@@ -166,9 +132,6 @@ export function resolvedEndpoints(env: NodeJS.ProcessEnv = process.env): Record<
   }
 }
 
-// -----------------------------
-// Deep freeze util to protect at runtime
-// -----------------------------
 function deepFreeze<T>(obj: T): T {
   if (obj && typeof obj === "object") {
     Object.freeze(obj)
@@ -179,17 +142,12 @@ function deepFreeze<T>(obj: T): T {
   return obj
 }
 
-// -----------------------------
-// Immutable, validated default instance
-// -----------------------------
 export const AppConfig: AppConfig = deepFreeze(buildAppConfig())
 
-// Optional: expose a strict mode that warns on missing base URL when required
 export const REQUIRE_ABSOLUTE_ENDPOINTS = envBool("REQUIRE_ABSOLUTE_ENDPOINTS", false)
 if (REQUIRE_ABSOLUTE_ENDPOINTS) {
   const base = process.env.API_BASE_URL
   if (!base) {
-    // eslint-disable-next-line no-console
     console.warn("[AppConfig] REQUIRE_ABSOLUTE_ENDPOINTS is true but API_BASE_URL is not set.")
   }
 }
